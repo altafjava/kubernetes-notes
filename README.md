@@ -143,3 +143,41 @@ Before we head into setting up a kubernetes cluster, it is important to understa
 
 - **kubectl:** The kube control tool is used to deploy and manage applications on a kubernetes cluster, to get cluster information, to get the status of nodes in the cluster and many other things.
   ![kubectl](images/architecture/kubectl.png)
+
+## 3. POD
+
+_**Prerequisite:** Before we head into understanding PODs, we would like to assume that the following have been setup already: At this point, we assume that the application is already developed and built into Docker Images and is available on a Docker repository like Docker Hub, so Kubernetes can pull it down. We also assume that the Kubernetes cluster has already been set up and is working. This could be a single-node setup or a multi-node setup; it doesn’t matter. All the services need to be running._
+
+As we discussed before, with Kubernetes, our ultimate aim is to deploy our application in the form of containers on a set of machines that are configured as worker nodes in a cluster. However, Kubernetes does not deploy containers directly on the worker nodes. The containers are encapsulated into a Kubernetes object known as `PODs`. A `POD` is a single instance of an application. A POD is the smallest object that we can create in Kubernetes.
+![pod](images/pod/pod.png)
+Here we see the simplest of the simplest cases where we can have a single-node Kubernetes cluster with a single instance of our application running in a single Docker container encapsulated in a POD.
+
+- What if the number of users accessing our application increases and we need to scale our application? We need to add additional instances of our web application to share the load.
+- Now, where would we spin up additional instances?
+- Do we bring up a new container instance within the same POD? No! We create a new POD altogether with a new instance of the same application. As we can see now, we have two instances of our web application running on two separate PODs on the same Kubernetes system or node.
+- What if the user base further increases and our current node has insufficient capacity? Well, then we can always deploy additional PODs on a new node in the cluster. We will have a new node added to the cluster to expand its physical capacity.
+- What does it mean? PODs usually have a one-to-one relationship with containers running our application. To scale up, we create new PODs, and to scale down, we delete PODs. We do not add additional containers to an existing POD to scale our application.
+
+**Multi-Container PODs:** Now, we just said that PODs usually have a one-to-one relationship with the containers, but are we restricted to having a single container in a single POD? No! A single POD CAN have multiple containers, except for the fact that they are usually not multiple containers of the same kind.
+![multi-container-pod](images/pod/multi-container-pod.png)
+As we discussed in the previous slide, if our intention was to scale our application, then we would need to create additional PODs. But sometimes we might have a scenario where we have a helper container that is doing some kind of supporting task for our web application, such as processing user-entered data, processing a file uploaded by the user, etc., and we want these helper containers to live along side of our application container. In that case, we can have both of these containers part of the same POD, so that when a new application container is created, the helper is also created, and when it dies, the helper also dies since they are part of the same POD.
+
+The two containers can also communicate with each other directly by referring to each other as `localhost` since they share the same network namespace. Plus, they can easily share the same storage space.
+
+**POD Understanding from a different angle:** Let’s, for a moment, keep Kubernetes out of our discussion and talk about simple Docker containers. Let’s assume we were developing a process or a script to deploy our application on a Docker host. Then we would first simply deploy our application using a simple `docker run python-app` command, and the application would run fine and our users would be able to access it. When the load increases, we deploy more instances of our application by running the docker run commands many more times. This works fine, and we are all happy.
+![docker-run-commands](images/pod/docker-run-commands.png)
+Now, sometime in the future, our application will be further developed, undergo architectural changes, and grow and get more complex. We now have new helper containers that help our web applications by processing or fetching data from elsewhere. These helper containers maintain a one-to-one relationship with our application containers and, thus, need to communicate with the application containers directly and access data from those containers.
+
+- For this, we need to maintain a map of what apps and helper containers are connected to each other.
+- We would need to establish network connectivity between these containers ourselves using links and custom networks.
+- We would need to create shareable volumes, share them among the containers, and maintain a map of that as well.
+- And most importantly, we would need to monitor the state of the application container and, when it dies, manually kill the helper container as well, as it is no longer required.
+- When a new container is deployed, we would need to deploy the new helper container as well.
+
+With PODs, Kubernetes does all of this for us automatically. We just need to define what containers a POD consists of, and the containers in a POD by default will have access to the same storage, the same network namespace, and the same fate, as they will be created and destroyed together. Even if our application didn’t happen to be so complex and we could live with a single container, Kubernetes still requires us to create PODs. But this is good in the long run, as our application is now equipped for architectural changes and scale in the future.
+
+**How to deploy PODs:** Earlier, we learned about the kubectl run command. What this command really does is deploy a Docker container by creating a POD. So it first creates a POD automatically and deploys an instance of the nginx Docker image. But where does it get the application image from? For that, we need to specify the image name using the `–-image` parameter.
+![kubectl-command](images/pod/kubectl-command.png)
+The application image, in this case the `nginx` image, is downloaded from the `docker hub` repository. Docker Hub, as we discussed, is a public repository where the latest Docker images of various applications are stored. We could configure Kubernetes to pull the image from the public Docker hub or a private repository within the organisation.
+
+Now that we have a POD created, how do we see the list of PODs available? The `kubectl get pods` command helps us see the list of pods in our cluster. In this case, we see the pod is in a `ContainerCreating` state and soon changes to a `Running` state when it is actually running.
