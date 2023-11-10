@@ -8,7 +8,7 @@ To understand Kubernetes, we must first understand two things: `Container` & `Or
 
    ### Why do we need containers?
 
-   1. What if we have a requirement to setup an end-to-end stack including various different technologies like a Web Server using Node/Java/Spring/Tomcat, a database such as MongoDB/CouchDB, messaging system like Kafka, a caching system like Redis, and an orchestration tool like Ansible? We might face a lot of issues while developing these applications with all these different components.
+   1. What if we have a requirement to setup an end-to-end stack including various technologies like a Web Server using Node/Java/Spring/Tomcat, a database such as MongoDB/CouchDB, messaging system like Kafka, a caching system like Redis, and an orchestration tool like Ansible? We might face a lot of issues while developing these applications with all these different components.
 
       - First, their compatibility with the underlying OS. We have to ensure that all these different services are compatible with the version of the OS we are planning to use. Certain versions of these services might not be compatible with the OS, and we may have to go back and look for another OS that is compatible with all of these different services.
 
@@ -144,7 +144,7 @@ Before we head into setting up a kubernetes cluster, it is important to understa
 - **kubectl:** The kube control tool is used to deploy and manage applications on a kubernetes cluster, to get cluster information, to get the status of nodes in the cluster and many other things.
   ![kubectl](images/architecture/kubectl.png)
 
-## 3. POD
+## 3. POD Introduction
 
 _**Prerequisite:** Before we head into understanding PODs, we would like to assume that the following have been setup already: At this point, we assume that the application is already developed and built into Docker Images and is available on a Docker repository like Docker Hub, so Kubernetes can pull it down. We also assume that the Kubernetes cluster has already been set up and is working. This could be a single-node setup or a multi-node setup; it doesn’t matter. All the services need to be running._
 
@@ -181,3 +181,32 @@ With PODs, Kubernetes does all of this for us automatically. We just need to def
 The application image, in this case the `nginx` image, is downloaded from the `docker hub` repository. Docker Hub, as we discussed, is a public repository where the latest Docker images of various applications are stored. We could configure Kubernetes to pull the image from the public Docker hub or a private repository within the organisation.
 
 Now that we have a POD created, how do we see the list of PODs available? The `kubectl get pods` command helps us see the list of pods in our cluster. In this case, we see the pod is in a `ContainerCreating` state and soon changes to a `Running` state when it is actually running.
+
+## 4. POD Configuration
+
+Kubernetes uses YAML files as input for the creation of objects such as PODs, Replicas, Deployments, Services etc. All of these follow similar structure. A Kubernetes definition file always contains 4 top-level fields. The `apiVersion`, `kind`, `metadata` and `spec`. These are top-level or root-level properties. These are all required fields, so we must have them in our configuration file.
+
+![yaml-in-Kubernetes](images/pod/yaml-in-kubernetes.png)
+
+- **apiVersion:** This is the version of the Kubernetes API we’re using to create the object. Depending on what we are trying to create we must use the right apiVersion. The possible values for this field could be v1, apps/v1, apps/v1beta1, extensions/v1beta1, etc.
+
+- **kind:** The kind refers to the type of object we are trying to create. Some possible values could be `Pod`, `ReplicaSet`, `Deployment` or `Service`.
+
+- **metadata:** The metadata is data about the object like its name, labels etc. As we can see unlike the first two(apiVersion & kind) we specified a string value. This is in the form of a dictionary. So everything under metadata is intended to the right a little bit and so `name` and `labels` are children of metadata.
+
+  Under metadata, the `name` is a string value. So we can name our POD `myapp-pod` and the `labels` is a dictionary. So labels is a dictionary within the metadata dictionary and it can have any key and value pairs as we wish. For now, we have added a label app with the value `myapp`. Similarly, we could add other labels as we see fit which will help us to identify these objects at a later point in time. Say for example there are 100s of PODs running a front-end application and 100’s of them running a backend application or a database. It will be difficult to group these PODs once they are deployed. If we label them as front-end, back-end or database, we will be able to filter the PODs based on this label at a later point in time.
+
+  It’s important to note that under metadata, we can only specify `name`, `labels` or anything else that Kubernetes expects to be under metadata. We cannot add any other property as we wish under this. However, under `labels`, we can have any kind of key or value pairs as we see fit.
+
+- **spec:** So far we have only mentioned the type and name of the object we need to create which happens to be a POD with the name `myapp-pod` but we haven’t specified the container or image we need in the pod. The last section in the configuration file is the specification which is written as `spec`. Depending on the object we are going to create, this is where we provide additional information to Kubernetes about that object.
+
+  Spec is a dictionary so add a property under it called `containers` which is a list or an array. The reason this property is a list is because the PODs can have multiple containers within them. In this case, we will only add a single item to the list, since we plan to have only a single container in the POD. The item in the list is a dictionary, so add a name and image property. The value for `image` is nginx.
+
+Once the file is created, run this command to create the POD.
+
+```
+kubectl create -f pod-definition.yml
+```
+
+Once we create the pod, how do you see it? Use the `kubectl get pods` command to see a list of pods available. In this case, it's just one. To see detailed information about the pod run the `kubectl describe pod` command. This will tell the information about the POD, when it was created, what labels are assigned to it, what docker containers are part of it and the events associated with that POD.
+![commands](images/pod/commands.png)
